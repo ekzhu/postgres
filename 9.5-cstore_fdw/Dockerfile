@@ -38,12 +38,22 @@ RUN apt-get update \
 	&& apt-get install -y \
 		postgresql-$PG_MAJOR=$PG_VERSION \
 		postgresql-contrib-$PG_MAJOR=$PG_VERSION \
-	&& rm -rf /var/lib/apt/lists/*
+		postgresql-server-dev-$PG_MAJOR=$PG_VERSION
+
+# Install cstore_fdw and dependencies
+RUN apt-get install -y build-essential pgxnclient
+RUN apt-get install -y protobuf-c-compiler libprotobuf-c0-dev && pgxn install cstore_fdw
+# RUN echo 'shared_preload_libraries = \'cstore_fdw\'' > /usr/share/postgresql/$PG_MAJOR/postgresql.conf.sample
+
+RUN rm -rf /var/lib/apt/lists/*
 
 # make the sample config easier to munge (and "correct by default")
 RUN mv -v /usr/share/postgresql/$PG_MAJOR/postgresql.conf.sample /usr/share/postgresql/ \
 	&& ln -sv ../postgresql.conf.sample /usr/share/postgresql/$PG_MAJOR/ \
 	&& sed -ri "s!^#?(listen_addresses)\s*=\s*\S+.*!\1 = '*'!" /usr/share/postgresql/postgresql.conf.sample
+
+# Extension settings
+RUN echo "shared_preload_libraries = 'cstore_fdw'" >> /usr/share/postgresql/postgresql.conf.sample
 
 RUN mkdir -p /var/run/postgresql && chown -R postgres /var/run/postgresql
 
